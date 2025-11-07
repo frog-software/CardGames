@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+cardgames
 
 # Test binary, built with `go test -c`
 *.test
@@ -30,3 +31,13 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# PocketBase data directory
+pb_data/
+pb_migrations/
+
+# SSL certificates (keep templates, ignore actual certs)
+ssl/*.pem
+ssl/*.key
+ssl/*.crt
+!ssl/.gitkeep

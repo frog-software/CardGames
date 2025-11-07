@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+*_test.go
+test.sh
+
+# Build artifacts
+cardgames
+*.exe
+*.dll
+*.so
+*.dylib
+
+# PocketBase data (will be volume-mounted)
+pb_data/
+pb_migrations/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+Thumbs.db

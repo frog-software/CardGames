@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardGames Platform - Example Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .table-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+        .table-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .table-card h3 { margin-top: 0; }
+        .status { font-weight: bold; }
+        .status.waiting { color: #ff9800; }
+        .status.playing { color: #4CAF50; }
+        .status.finished { color: #999; }
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            height: 200px;
+            overflow-y: scroll;
+            font-size: 12px;
+        }
+        .error { color: #f44336; }
+        .success { color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <h1>🎮 CardGames Platform - Example Client</h1>
+    
+    <div class="container">
+        <h2>📝 Authentication</h2>
+        <div id="auth-section">
+            <input type="email" id="email" placeholder="Email" value="test@example.com">
+            <input type="password" id="password" placeholder="Password" value="password123">
+            <button onclick="register()">Register</button>
+            <button onclick="login()">Login</button>
+            <button onclick="logout()" disabled id="logout-btn">Logout</button>
+        </div>
+        <p id="user-info"></p>
+    </div>
+
+    <div class="container">
+        <h2>🎯 Game Rules</h2>
+        <div id="rules-list">Loading...</div>
+    </div>
+
+    <div class="container">
+        <h2>🏠 Game Tables</h2>
+        <div>
+            <input type="text" id="table-name" placeholder="Table Name" value="My Game Room">
+            <select id="rule-select">
+                <option value="">Select Game Rule...</option>
+            </select>
+            <button onclick="createTable()" id="create-table-btn" disabled>Create Table</button>
+            <button onclick="loadTables()">Refresh</button>
+        </div>
+        <div id="tables-list" class="table-list">Loading...</div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Activity Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const pb = new PocketBase('http://127.0.0.1:8090');
+        let currentUser = null;
+        let gameRules = [];
+
+        // Initialize
+        pb.authStore.loadFromCookie(document.cookie);
+        if (pb.authStore.isValid) {
+            currentUser = pb.authStore.model;
+            updateAuthUI();
+        }
+
+        // Load initial data
+        loadRules();
+        loadTables();
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : '#0f0';
+            
+            // Create elements safely to prevent XSS
+            const div = document.createElement('div');
+            div.style.color = color;
+            div.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const data = {
+                    email: email,
+                    password: password,
+                    passwordConfirm: password,
+                    emailVisibility: true
+                };
+                await pb.collection('users').create(data);
+                log('✅ Registration successful! Now logging in...', 'success');
+                await login();
+            } catch (error) {
+                log('❌ Registration failed: ' + error.message, 'error');
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                await pb.collection('users').authWithPassword(email, password);
+                currentUser = pb.authStore.model;
+                updateAuthUI();
+                log('✅ Logged in as: ' + currentUser.email, 'success');
+                loadTables();
+            } catch (error) {
+                log('❌ Login failed: ' + error.message, 'error');
+            }
+        }
+
+        function logout() {
+            pb.authStore.clear();
+            currentUser = null;
+            updateAuthUI();
+            log('👋 Logged out', 'info');
+        }
+
+        function updateAuthUI() {
+            const isLoggedIn = pb.authStore.isValid;
+            document.getElementById('logout-btn').disabled = !isLoggedIn;
+            document.getElementById('create-table-btn').disabled = !isLoggedIn || gameRules.length === 0;
+            document.getElementById('user-info').innerHTML = isLoggedIn 
+                ? `<span class="success">✓ Logged in as: ${currentUser.email}</span>`
+                : '<span class="error">Not logged in</span>';
+        }
+
+        async function loadRules() {
+            try {
+                const records = await pb.collection('game_rules').getFullList();
+                gameRules = records;
+                
+                const rulesEl = document.getElementById('rules-list');
+                const selectEl = document.getElementById('rule-select');
+                
+                if (records.length === 0) {
+                    rulesEl.innerHTML = '<p>No game rules found.</p>';
+                } else {
+                    rulesEl.innerHTML = records.map(r => `
+                        <div style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-left: 3px solid #4CAF50;">
+                            <strong>${r.name}</strong><br>
+                            <small>${r.description}</small><br>
+                            <small style="color: #666;">Logic: ${r.logic_file}</small>
+                        </div>
+                    `).join('');
+                    
+                    selectEl.innerHTML = '<option value="">Select Game Rule...</option>' +
+                        records.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+                }
+                
+                updateAuthUI();
+                log('📋 Loaded ' + records.length + ' game rules', 'success');
+            } catch (error) {
+                log('❌ Failed to load rules: ' + error.message, 'error');
+            }
+        }
+
+        async function loadTables() {
+            try {
+                const records = await pb.collection('tables').getFullList({
+                    expand: 'rule,owner,players',
+                    sort: '-created'
+                });
+                
+                const tablesEl = document.getElementById('tables-list');
+                
+                if (records.length === 0) {
+                    tablesEl.innerHTML = '<p>No tables yet. Create one!</p>';
+                } else {
+                    tablesEl.innerHTML = records.map(t => {
+                        const rule = t.expand?.rule;
+                        const owner = t.expand?.owner;
+                        const players = t.expand?.players || [];
+                        
+                        return `
+                            <div class="table-card">
+                                <h3>${t.name}</h3>
+                                <p><strong>Game:</strong> ${rule?.name || 'Unknown'}</p>
+                                <p><strong>Status:</strong> <span class="status ${t.status}">${t.status}</span></p>
+                                <p><strong>Players:</strong> ${players.length}/${rule?.config_json?.meta?.player_count?.max || '?'}</p>
+                                <p><strong>Owner:</strong> ${owner?.email || 'Unknown'}</p>
+                                <button onclick="joinTable('${t.id}')" ${!currentUser || t.status !== 'waiting' ? 'disabled' : ''}>
+                                    Join
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                log('🏠 Loaded ' + records.length + ' tables', 'success');
+            } catch (error) {
+                log('❌ Failed to load tables: ' + error.message, 'error');
+            }
+        }
+
+        async function createTable() {
+            if (!currentUser) {
+                log('❌ Please login first', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('table-name').value;
+            const ruleId = document.getElementById('rule-select').value;
+            
+            if (!name || !ruleId) {
+                log('❌ Please enter table name and select a game rule', 'error');
+                return;
+            }
+            
+            try {
+                const data = {
+                    name: name,
+                    rule: ruleId,
+                    owner: currentUser.id,
+                    status: 'waiting',
+                    players: [currentUser.id],
+                    is_private: false
+                };
+                
+                const record = await pb.collection('tables').create(data);
+                log('✅ Table created: ' + record.name, 'success');
+                document.getElementById('table-name').value = '';
+                loadTables();
+            } catch (error) {
+                log('❌ Failed to create table: ' + error.message, 'error');
+            }
+        }
+
+        async function joinTable(tableId) {
+            if (!currentUser) {
+                log('❌ Please login first', 'error');
+                return;
+            }
+            
+            try {
+                // Get current table
+                const table = await pb.collection('tables').getOne(tableId);
+                
+                // Add current user to players
+                if (!table.players.includes(currentUser.id)) {
+                    table.players.push(currentUser.id);
+                    await pb.collection('tables').update(tableId, {
+                        players: table.players
+                    });
+                    log('✅ Joined table: ' + table.name, 'success');
+                    loadTables();
+                } else {
+                    log('ℹ️ Already in this table', 'info');
+                }
+            } catch (error) {
+                log('❌ Failed to join table: ' + error.message, 'error');
+            }
+        }
+
+        // Real-time subscriptions
+        pb.collection('tables').subscribe('*', function (e) {
+            log('🔄 Table ' + e.action + ': ' + (e.record.name || e.record.id), 'info');
+            loadTables();
+        });
+
+        pb.collection('game_actions').subscribe('*', function (e) {
+            log('🎮 Game action: ' + e.record.action_type + ' by ' + e.record.player, 'info');
+        });
+
+        log('🚀 CardGames client initialized', 'success');
+        log('📡 Real-time subscriptions active', 'success');
+    </script>
+</body>
+</html>
