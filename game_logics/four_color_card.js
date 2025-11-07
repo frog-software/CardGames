@@ -12,7 +12,9 @@ function initializeGame(config, playerIds) {
     const shuffledDeck = shuffleDeck(deck);
     
     // Determine dealer randomly for first game
-    // Note: For production, consider using a seeded RNG for deterministic replay
+    // TODO: Implement seeded RNG for deterministic replay capability
+    // For production: Use crypto-secure seeded random (e.g., based on table ID + round)
+    // This enables: 1) Event replay, 2) Anti-cheat verification, 3) Game state reconstruction
     const dealerIndex = Math.floor(Math.random() * playerIds.length);
     const dealerId = playerIds[dealerIndex];
     
@@ -421,12 +423,16 @@ function validateHu(config, gameState, playerId, actionData) {
 
 /**
  * Check if hand can win
+ * TODO: Implement complete Four Color Card winning validation
+ * Current implementation is simplified for MVP demonstration
+ * Production requirements:
+ * 1. Verify all cards form valid groups (kan, chi, sequences)
+ * 2. Check for special winning patterns
+ * 3. Validate jin_tiao (golden cards) special rules
+ * 4. Ensure proper meld combinations
  */
 function checkWinningHand(config, hand, melds) {
-    // Simplified winning condition:
-    // All cards must be able to form valid groups (kan, chi combinations)
-    // For now, we'll use a simplified check
-    
+    // Simplified winning condition for MVP
     // Count existing melds
     const totalMeldCards = 
         (melds.kan.length * 3) +
@@ -439,7 +445,7 @@ function checkWinningHand(config, hand, melds) {
     const totalCards = hand.length + totalMeldCards;
     
     // Basic validation: can form groups of 3 or 4
-    // In a real implementation, this would be more complex
+    // TODO: Replace with complete Four Color Card win validation algorithm
     return hand.length % 3 === 0 || hand.length % 3 === 1;
 }
 

@@ -34,15 +34,22 @@ func registerRoutes(app *pocketbase.PocketBase) {
 	})
 
 	app.OnRecordUpdate("tables").BindFunc(func(e *core.RecordEvent) error {
-		// Check if all players are ready and start game if so
-		record := e.Record
+		// TODO: Implement auto-start game logic when all players are ready
+		// This should:
+		// 1. Check if all players have player_states.ready = true
+		// 2. Verify minimum player count is met
+		// 3. Create initial game_state
+		// 4. Transition table status to "playing"
+		// 5. Broadcast game start event to all players
 		
-		if record.GetString("status") == "waiting" {
-			playerStates := record.Get("player_states")
-			if playerStates != nil {
-				// Could implement auto-start logic here
-			}
-		}
+		// Example implementation outline:
+		// record := e.Record
+		// if record.GetString("status") == "waiting" {
+		//     playerStates := record.Get("player_states")
+		//     if allPlayersReady(playerStates) {
+		//         startGame(e.App, record)
+		//     }
+		// }
 		
 		return e.Next()
 	})

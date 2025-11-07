@@ -17,8 +17,11 @@ func seedFourColorCard(app *pocketbase.PocketBase) error {
 		return nil
 	}
 	
-	// Continue with creation if record not found (any error here means not found)
-	// In production, you might want to check err.Error() more carefully
+	// Continue with creation if record not found
+	// TODO: For production, implement proper error type checking
+	// to distinguish between "not found" and other database errors
+	// Currently, any error is treated as "not found" which could
+	// mask actual database connection or permission issues
 
 	// Create the config JSON
 	config := map[string]interface{}{
