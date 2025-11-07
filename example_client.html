@@ -123,7 +123,12 @@
             const logEl = document.getElementById('log');
             const timestamp = new Date().toLocaleTimeString();
             const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : '#0f0';
-            logEl.innerHTML += `<div style="color:${color}">[${timestamp}] ${message}</div>`;
+            
+            // Create elements safely to prevent XSS
+            const div = document.createElement('div');
+            div.style.color = color;
+            div.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(div);
             logEl.scrollTop = logEl.scrollHeight;
         }
 
