@@ -35,3 +35,12 @@ go.work.sum
 # PocketBase data directory
 pb_data/
 pb_migrations/
+
+# Docker
+.dockerignore
+
+# SSL certificates (keep templates, ignore actual certs)
+ssl/*.pem
+ssl/*.key
+ssl/*.crt
+!ssl/.gitkeep

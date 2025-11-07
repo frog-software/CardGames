@@ -27,6 +27,7 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 	gameRules.Fields.Add(
 		&core.TextField{Name: "name", Required: true},
 		&core.TextField{Name: "description"},
+		&core.SelectField{Name: "category", Values: []string{"mahjong-like", "poker-like", "trick-taking", "other"}, MaxSelect: 1},
 		&core.JSONField{Name: "config_json", Required: true},
 		&core.TextField{Name: "logic_file", Required: true},
 	)

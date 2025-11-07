@@ -99,6 +99,7 @@ func seedFourColorCard(app *pocketbase.PocketBase) error {
 	record = core.NewRecord(collection)
 	record.Set("name", "Four Color Card")
 	record.Set("description", "四色牌游戏规则 - A traditional Chinese card game with four colored suits and special cards.")
+	record.Set("category", "mahjong-like")
 	record.Set("config_json", string(configJson))
 	record.Set("logic_file", "four_color_card.js")
 

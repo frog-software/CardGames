@@ -1,10 +1,169 @@
+# CardGames - Extensible Online Multiplayer Card Game Platform
 # CardGames - 可扩展式在线多人卡牌游戏平台
+
+[English](#english) | [中文](#chinese)
+
+---
+
+<a name="english"></a>
+## English
+
+An highly extensible online multiplayer card game platform built on PocketBase.
+
+### Core Philosophy
+
+**"Everything is an Object"** - In this platform, all game concepts (rules, tables, players, games, every action) are database records.
+
+### Key Features
+
+- **Rules as Configuration**: Game rules are stored as data - add new games by creating records
+- **Event Sourcing**: Every game action is recorded for anti-cheat, reconnection, and replay
+- **State Machine Driven**: Table status (waiting, playing, finished) drives game flow
+- **Pluggable Game Engine**: Different game rules via JavaScript logic files
+
+### Technology Stack
+
+- **Backend**: PocketBase (Go)
+- **JavaScript Engine**: goja (for game logic execution)
+- **Database**: SQLite (PocketBase built-in)
+- **Real-time**: PocketBase Realtime API
+
+### Quick Start
+
+#### Local Development
+
+```bash
+# Build
+go build -o cardgames
+
+# Run
+./cardgames serve
+
+# Access
+# - API: http://localhost:8090
+# - Admin UI: http://localhost:8090/_/
+```
+
+#### Docker Deployment
+
+```bash
+# Using Docker Compose
+docker-compose up -d
+
+# Or build image manually
+docker build -t cardgames:latest .
+docker run -d -p 8090:8090 -v cardgames-data:/app/pb_data cardgames:latest
+```
+
+See [DOCKER_GUIDE.md](DOCKER_GUIDE.md) for detailed Docker deployment instructions.
+
+### Documentation
+
+**For Users:**
+- [README.md](README.md) - This file, platform overview
+- [API.md](API.md) - REST API reference
+
+**For Developers:**
+- [GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md) - **How to create new games** ⭐
+- [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) - **How to integrate frontend** ⭐
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Development guide
+- [DOCKER_GUIDE.md](DOCKER_GUIDE.md) - Docker deployment guide
+- [ROADMAP.md](ROADMAP.md) - Future improvements
+
+### Game Categories
+
+The platform supports different game categories:
+
+1. **Mahjong-like Games** (麻将类)
+   - Turn-based with multiple response options
+   - Example: Four Color Card
+   - See: `game_logics/four_color_card.js`
+
+2. **Poker-like Games** (扑克类)
+   - Betting rounds and card rankings
+   - Coming soon
+
+3. **Trick-taking Games** (打牌类)
+   - Trick-based play
+   - Coming soon
+
+### Creating Your First Game
+
+1. **Read the guide**: [GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md)
+
+2. **Create game logic file** in `game_logics/mygame.js`:
+```javascript
+function initializeGame(config, playerIds) {
+    // Initialize game state
+    return { player_hands: {}, deck: [], ... };
+}
+
+function validatePlay_cards(config, gameState, playerId, actionData) {
+    // Validate action
+    return { valid: true, message: "Valid" };
+}
+
+function applyPlay_cards(config, gameState, playerId, actionData) {
+    // Apply action to state
+    return newGameState;
+}
+```
+
+3. **Create game rule** in admin UI with:
+   - Name, description
+   - logic_file: "mygame.js"
+   - config_json: game configuration
+
+4. **Test your game** by creating a table and playing!
+
+### Frontend Integration
+
+See [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) for complete frontend integration guide.
+
+**Quick example:**
+```javascript
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://localhost:8090');
+
+// Login
+await pb.collection('users').authWithPassword(email, password);
+
+// Create table
+const table = await pb.collection('tables').create({
+    name: 'My Game',
+    rule: ruleId,
+    owner: pb.authStore.model.id,
+    status: 'waiting'
+});
+
+// Subscribe to updates
+pb.collection('game_actions').subscribe('*', (data) => {
+    console.log('New action:', data.record);
+});
+```
+
+### Architecture Highlights
+
+1. **Extensibility**: Add games without modifying core code
+2. **Event Sourcing**: Complete audit trail and replay capability  
+3. **Security**: Proper authentication and authorization
+4. **Real-time**: Instant updates via WebSocket subscriptions
+
+### License
+
+See [LICENSE](LICENSE) file.
+
+---
+
+<a name="chinese"></a>
+## 中文
 
 一个基于 PocketBase 构建的高度可扩展的在线多人卡牌游戏平台。
 
-## 核心理念
+### 核心理念
 
-**"万物皆对象"** - 在这个平台中，游戏中的所有概念（规则、牌桌、玩家、牌局、每一次出牌）都是数据库中的一个记录。
+**"万物皆对象"** - 在这个平台中，所有游戏概念（规则、牌桌、玩家、牌局、每一次出牌）都是数据库中的一个记录。
 
 ### 核心特性
 
@@ -13,26 +172,138 @@
 - **状态机驱动**: 牌桌状态（等待中、游戏中、已结束）驱动游戏流程
 - **可插拔游戏引擎**: 通过 JavaScript 逻辑文件实现不同游戏规则
 
-## 技术栈
+### 技术栈
 
 - **后端**: PocketBase (Go)
 - **JavaScript引擎**: goja (用于游戏逻辑执行)
 - **数据库**: SQLite (PocketBase 内置)
 - **实时通信**: PocketBase Realtime API
 
-## 项目结构
+### 快速开始
 
+#### 本地开发
+
+```bash
+# 构建
+go build -o cardgames
+
+# 运行
+./cardgames serve
+
+# 访问
+# - API: http://localhost:8090
+# - 管理界面: http://localhost:8090/_/
 ```
-CardGames/
-├── main.go                      # 主入口文件
-├── collections.go               # 数据库集合定义
-├── routes.go                    # API 路由和 hooks
-├── seed_data.go                 # 示例数据初始化
-├── game_logics/                 # 游戏逻辑文件目录
-│   └── four_color_card.js       # 四色牌游戏逻辑
-├── pb_data/                     # PocketBase 数据目录（自动创建）
-└── README.md                    # 本文件
+
+#### Docker 部署
+
+```bash
+# 使用 Docker Compose
+docker-compose up -d
+
+# 或手动构建镜像
+docker build -t cardgames:latest .
+docker run -d -p 8090:8090 -v cardgames-data:/app/pb_data cardgames:latest
 ```
+
+详细的 Docker 部署说明请参见 [DOCKER_GUIDE.md](DOCKER_GUIDE.md)。
+
+### 文档
+
+**用户文档：**
+- [README.md](README.md) - 本文件，平台概述
+- [API.md](API.md) - REST API 参考
+
+**开发者文档：**
+- [GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md) - **如何创建新游戏** ⭐
+- [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) - **如何集成前端** ⭐
+- [DEVELOPMENT.md](DEVELOPMENT.md) - 开发指南
+- [DOCKER_GUIDE.md](DOCKER_GUIDE.md) - Docker 部署指南
+- [ROADMAP.md](ROADMAP.md) - 未来改进计划
+
+### 游戏分类
+
+平台支持不同的游戏分类：
+
+1. **麻将类游戏**
+   - 回合制，多种响应选项
+   - 示例：四色牌
+   - 参见：`game_logics/four_color_card.js`
+
+2. **扑克类游戏**
+   - 下注轮次和牌型排名
+   - 即将推出
+
+3. **打牌类游戏**
+   - 基于墩的玩法
+   - 即将推出
+
+### 创建你的第一个游戏
+
+1. **阅读指南**：[GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md)
+
+2. **在 `game_logics/mygame.js` 中创建游戏逻辑文件**：
+```javascript
+function initializeGame(config, playerIds) {
+    // 初始化游戏状态
+    return { player_hands: {}, deck: [], ... };
+}
+
+function validatePlay_cards(config, gameState, playerId, actionData) {
+    // 验证动作
+    return { valid: true, message: "有效" };
+}
+
+function applyPlay_cards(config, gameState, playerId, actionData) {
+    // 将动作应用到状态
+    return newGameState;
+}
+```
+
+3. **在管理界面创建游戏规则**，包括：
+   - 名称、描述
+   - logic_file: "mygame.js"
+   - config_json: 游戏配置
+
+4. **通过创建牌桌来测试你的游戏**！
+
+### 前端集成
+
+完整的前端集成指南请参见 [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)。
+
+**快速示例：**
+```javascript
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://localhost:8090');
+
+// 登录
+await pb.collection('users').authWithPassword(email, password);
+
+// 创建牌桌
+const table = await pb.collection('tables').create({
+    name: '我的游戏',
+    rule: ruleId,
+    owner: pb.authStore.model.id,
+    status: 'waiting'
+});
+
+// 订阅更新
+pb.collection('game_actions').subscribe('*', (data) => {
+    console.log('新动作:', data.record);
+});
+```
+
+### 架构亮点
+
+1. **可扩展性**: 添加游戏无需修改核心代码
+2. **事件溯源**: 完整的审计跟踪和重播能力
+3. **安全性**: 适当的身份验证和授权
+4. **实时性**: 通过 WebSocket 订阅实现即时更新
+
+### 许可证
+
+请参见 [LICENSE](LICENSE) 文件。
 
 ## 数据库设计
 
