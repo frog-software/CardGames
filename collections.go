@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // initializeCollections creates all necessary collections for the game platform
@@ -15,11 +16,12 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 
 	// Create game_rules collection
 	gameRules := core.NewBaseCollection("game_rules")
-	gameRules.ListRule = nil
-	gameRules.ViewRule = nil
-	gameRules.CreateRule = nil
-	gameRules.UpdateRule = nil
-	gameRules.DeleteRule = nil
+	// Allow read access to all, but restrict write operations to admins only
+	gameRules.ListRule = types.Pointer("@request.auth.id != ''") // Authenticated users can list
+	gameRules.ViewRule = types.Pointer("@request.auth.id != ''") // Authenticated users can view
+	gameRules.CreateRule = nil                                    // Only admins can create (default)
+	gameRules.UpdateRule = nil                                    // Only admins can update
+	gameRules.DeleteRule = nil                                    // Only admins can delete
 	
 	// Add fields
 	gameRules.Fields.Add(
@@ -35,11 +37,15 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 
 	// Create tables collection (without current_game relation initially)
 	tables := core.NewBaseCollection("tables")
-	tables.ListRule = nil
-	tables.ViewRule = nil
-	tables.CreateRule = nil
-	tables.UpdateRule = nil
-	tables.DeleteRule = nil
+	// Authenticated users can list and view tables
+	tables.ListRule = types.Pointer("@request.auth.id != ''")
+	tables.ViewRule = types.Pointer("@request.auth.id != ''")
+	// Users can create tables (they become the owner)
+	tables.CreateRule = types.Pointer("@request.auth.id != ''")
+	// Only table owner can update
+	tables.UpdateRule = types.Pointer("@request.auth.id != '' && owner = @request.auth.id")
+	// Only table owner can delete
+	tables.DeleteRule = types.Pointer("@request.auth.id != '' && owner = @request.auth.id")
 	
 	tables.Fields.Add(
 		&core.TextField{Name: "name", Required: true},
@@ -58,11 +64,12 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 
 	// Create game_states collection
 	gameStates := core.NewBaseCollection("game_states")
-	gameStates.ListRule = nil
-	gameStates.ViewRule = nil
-	gameStates.CreateRule = nil
-	gameStates.UpdateRule = nil
-	gameStates.DeleteRule = nil
+	// Only table players can view game state
+	gameStates.ListRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
+	gameStates.ViewRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
+	gameStates.CreateRule = nil // System creates game states
+	gameStates.UpdateRule = nil // System updates game states
+	gameStates.DeleteRule = nil // System deletes game states
 	
 	gameStates.Fields.Add(
 		&core.RelationField{Name: "table", Required: true, CollectionId: tables.Id, MaxSelect: 1, CascadeDelete: true},
@@ -93,11 +100,13 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 
 	// Create game_actions collection
 	gameActions := core.NewBaseCollection("game_actions")
-	gameActions.ListRule = nil
-	gameActions.ViewRule = nil
-	gameActions.CreateRule = nil
-	gameActions.UpdateRule = nil
-	gameActions.DeleteRule = nil
+	// Only table players can view actions
+	gameActions.ListRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
+	gameActions.ViewRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
+	// Players can create actions
+	gameActions.CreateRule = types.Pointer("@request.auth.id != ''")
+	gameActions.UpdateRule = nil // Actions are immutable
+	gameActions.DeleteRule = nil // Actions cannot be deleted
 	
 	gameActions.Fields.Add(
 		&core.RelationField{Name: "table", Required: true, CollectionId: tables.Id, MaxSelect: 1, CascadeDelete: true},

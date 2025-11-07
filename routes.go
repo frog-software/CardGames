@@ -30,11 +30,6 @@ func registerRoutes(app *pocketbase.PocketBase) {
 			record.Set("players", players)
 		}
 		
-		// Set default status
-		if record.GetString("status") == "" {
-			record.Set("status", "waiting")
-		}
-		
 		return e.Next()
 	})
 

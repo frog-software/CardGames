@@ -11,10 +11,14 @@ import (
 func seedFourColorCard(app *pocketbase.PocketBase) error {
 	// Check if rule already exists
 	record, err := app.FindFirstRecordByFilter("game_rules", "name = 'Four Color Card'")
+	
+	// If record exists (no error), return early
 	if err == nil && record != nil {
-		// Rule already exists
 		return nil
 	}
+	
+	// Continue with creation if record not found (any error here means not found)
+	// In production, you might want to check err.Error() more carefully
 
 	// Create the config JSON
 	config := map[string]interface{}{

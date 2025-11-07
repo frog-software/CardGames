@@ -12,6 +12,7 @@ function initializeGame(config, playerIds) {
     const shuffledDeck = shuffleDeck(deck);
     
     // Determine dealer randomly for first game
+    // Note: For production, consider using a seeded RNG for deterministic replay
     const dealerIndex = Math.floor(Math.random() * playerIds.length);
     const dealerId = playerIds[dealerIndex];
     
