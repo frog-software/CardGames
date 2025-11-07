@@ -33,7 +33,7 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 		return err
 	}
 
-	// Create tables collection
+	// Create tables collection (without current_game relation initially)
 	tables := core.NewBaseCollection("tables")
 	tables.ListRule = nil
 	tables.ViewRule = nil
@@ -48,7 +48,6 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 		&core.SelectField{Name: "status", Required: true, Values: []string{"waiting", "playing", "finished"}, MaxSelect: 1},
 		&core.RelationField{Name: "players", CollectionId: "_pb_users_auth_"},
 		&core.JSONField{Name: "player_states"},
-		&core.RelationField{Name: "current_game", MaxSelect: 1},
 		&core.BoolField{Name: "is_private"},
 		&core.TextField{Name: "password"},
 	)
@@ -81,13 +80,13 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 		return err
 	}
 
-	// Update tables collection to link current_game to game_states
+	// Update tables collection to add current_game relation
 	tablesCollection, _ := app.FindCollectionByNameOrId("tables")
-	if relationField := tablesCollection.Fields.GetByName("current_game"); relationField != nil {
-		if rf, ok := relationField.(*core.RelationField); ok {
-			rf.CollectionId = gameStates.Id
-		}
-	}
+	tablesCollection.Fields.Add(&core.RelationField{
+		Name:         "current_game",
+		CollectionId: gameStates.Id,
+		MaxSelect:    1,
+	})
 	if err := app.Save(tablesCollection); err != nil {
 		return err
 	}
