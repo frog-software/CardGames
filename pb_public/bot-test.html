@@ -359,8 +359,9 @@
                 // Get player email
                 let playerEmail = 'Unknown';
                 try {
+                    // PocketBase filter strings require single quotes around string literals
                     const users = await this.api.pb.collection('users').getFullList({
-                        filter: `id = "${action.player}"`
+                        filter: `id = '${action.player}'`
                     });
                     if (users.length > 0) {
                         playerEmail = users[0].email;

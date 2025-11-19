@@ -57,7 +57,8 @@ class GameAPIService {
         // Simplified filter without complex OR conditions
         let filter = '';
         if (gameRuleId) {
-            filter = `rule = "${gameRuleId}"`;
+            // PocketBase filter strings should use single quotes
+            filter = `rule = '${gameRuleId}'`;
         }
         
         return await this.pb.collection('tables').getList(1, 50, {
@@ -167,8 +168,9 @@ class GameAPIService {
         // Get or create bot user
         let botUser;
         try {
+            // Use single quotes in filter to match PocketBase filter syntax
             const users = await this.pb.collection('users').getFullList({
-                filter: `email = "${botEmail}"`
+                filter: `email = '${botEmail}'`
             });
             if (users && users.length > 0) {
                 botUser = users[0];
@@ -194,7 +196,7 @@ class GameAPIService {
                 // If creation fails (e.g., user already exists), try to get it again
                 console.log(`Failed to create bot user, trying to fetch again: ${createError.message}`);
                 const users = await this.pb.collection('users').getFullList({
-                    filter: `email = "${botEmail}"`
+                    filter: `email = '${botEmail}'`
                 });
                 if (users && users.length > 0) {
                     botUser = users[0];
@@ -265,8 +267,9 @@ class GameAPIService {
         }
 
         // Get sequence number
+        // Use single quotes in filter expressions
         const actions = await this.pb.collection('game_actions').getList(1, 1, {
-            filter: `table = "${tableId}"`,
+            filter: `table = '${tableId}'`,
             sort: '-sequence_number'
         });
 
@@ -325,7 +328,7 @@ class GameAPIService {
                 callback(data);
             }
         }, {
-            filter: `table = "${tableId}"`
+            filter: `table = '${tableId}'`
         });
     }
 
