@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四色牌机器人测试 - Bot Test Mode</title>
+    <script src="pocketbase-client.js"></script>
+    <script src="api-service.js"></script>
+    <script src="bot-player.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #ecf0f1;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .panel h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        button.danger { background: #e74c3c; }
+        button.danger:hover:not(:disabled) { background: #c0392b; }
+        button.success { background: #2ecc71; }
+        button.success:hover:not(:disabled) { background: #27ae60; }
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .log-panel {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            height: 600px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin: 3px 0;
+            padding: 2px 0;
+        }
+        .log-entry.error { color: #f44; }
+        .log-entry.success { color: #4f4; }
+        .log-entry.warning { color: #fa0; }
+        .log-entry.action { color: #4af; }
+        .game-info {
+            background: rgba(52, 152, 219, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .game-info h3 {
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+        .player-info {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+        .player-info.active {
+            border-left-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .label {
+            color: #95a5a6;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .stat-box .value {
+            color: #3498db;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        input {
+            padding: 10px;
+            border: 2px solid #34495e;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            margin: 5px;
+            width: 300px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            background: rgba(255,255,255,0.15);
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 四色牌机器人测试模式 Four Color Card Bot Test</h1>
+        
+        <div class="panel">
+            <h2>控制面板 Control Panel</h2>
+            <div class="control-panel">
+                <input type="text" id="room-name" placeholder="房间名 Room Name" value="Bot Test Room">
+                <button onclick="botTest.createAndStartGame()" class="success" id="start-btn">
+                    创建并开始游戏 Create & Start Game
+                </button>
+                <button onclick="botTest.stopGame()" class="danger" id="stop-btn" disabled>
+                    停止游戏 Stop Game
+                </button>
+                <button onclick="botTest.clearLog()">
+                    清除日志 Clear Log
+                </button>
+            </div>
+            <p style="margin-top: 10px; color: #95a5a6;">
+                这个模式会创建一个房间，添加4个机器人玩家，然后让它们互相对战。你可以观察游戏日志来检查游戏逻辑的正确性。
+                <br>
+                This mode creates a room with 4 bot players and watches them play against each other. You can observe the game log to verify game logic.
+            </p>
+        </div>
+
+        <div class="game-area">
+            <div>
+                <div class="panel">
+                    <h2>游戏信息 Game Info</h2>
+                    <div id="game-info" class="game-info">
+                        <p>等待开始游戏... Waiting to start game...</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>游戏统计 Game Statistics</h2>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="label">回合数 Turns</div>
+                            <div class="value" id="turn-count">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">动作数 Actions</div>
+                            <div class="value" id="action-count">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">牌堆剩余 Deck</div>
+                            <div class="value" id="deck-count">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">游戏状态 Status</div>
+                            <div class="value" id="game-status">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>游戏日志 Game Log</h2>
+                <div id="log" class="log-panel"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BotTestApp {
+            constructor() {
+                this.pb = new PocketBase('http://127.0.0.1:8090');
+                this.api = new GameAPIService(this.pb);
+                this.currentTableId = null;
+                this.botManager = null;
+                this.gameStateSubscription = null;
+                this.turnCount = 0;
+                this.actionCount = 0;
+            }
+
+            async init() {
+                // Auto-login or create test admin account
+                try {
+                    await this.api.login('bottest@example.com', 'bottest123');
+                    this.log('✓ Logged in as bottest@example.com', 'success');
+                } catch (error) {
+                    try {
+                        await this.api.register('bottest@example.com', 'bottest123', 'BotTest');
+                        this.log('✓ Created and logged in as bottest@example.com', 'success');
+                    } catch (err) {
+                        this.log('✗ Failed to login/register: ' + err.message, 'error');
+                    }
+                }
+            }
+
+            log(message, type = 'info') {
+                const logEl = document.getElementById('log');
+                const timestamp = new Date().toLocaleTimeString();
+                const div = document.createElement('div');
+                div.className = `log-entry ${type}`;
+                div.textContent = `[${timestamp}] ${message}`;
+                logEl.appendChild(div);
+                logEl.scrollTop = logEl.scrollHeight;
+                console.log(`[${type}] ${message}`);
+            }
+
+            clearLog() {
+                document.getElementById('log').innerHTML = '';
+                this.log('日志已清除 Log cleared', 'success');
+            }
+
+            async createAndStartGame() {
+                try {
+                    document.getElementById('start-btn').disabled = true;
+                    
+                    this.log('========== 开始创建机器人游戏 Starting Bot Game ==========', 'success');
+                    
+                    // Get Four Color Card rule
+                    const rules = await this.api.getGameRules();
+                    const fourColorRule = rules.find(r => r.logic_file === 'four_color_card.js');
+                    
+                    if (!fourColorRule) {
+                        throw new Error('Four Color Card rule not found');
+                    }
+                    
+                    this.log(`✓ Found game rule: ${fourColorRule.name}`, 'success');
+                    
+                    // Create table
+                    const roomName = document.getElementById('room-name').value || 'Bot Test Room';
+                    const table = await this.api.createTable(roomName, fourColorRule.id);
+                    this.currentTableId = table.id;
+                    
+                    this.log(`✓ Created table: ${roomName} (${table.id})`, 'success');
+                    
+                    // Add 3 more bot players (owner is already in)
+                    const botEmails = ['bot1@example.com', 'bot2@example.com', 'bot3@example.com'];
+                    
+                    for (const botEmail of botEmails) {
+                        await this.api.addBotPlayer(this.currentTableId, botEmail);
+                        this.log(`✓ Added bot: ${botEmail}`, 'success');
+                    }
+                    
+                    // Initialize bot manager
+                    this.botManager = new BotManager(this.api, this.currentTableId);
+                    
+                    // Add all 4 bots (including the owner as a bot)
+                    const currentUser = this.api.getCurrentUser();
+                    const allBotEmails = [currentUser.email, ...botEmails];
+                    
+                    for (const botEmail of allBotEmails) {
+                        const bot = await this.botManager.addBot(botEmail);
+                        this.log(`✓ Initialized bot: ${botEmail}`, 'success');
+                    }
+                    
+                    // Subscribe to table and game updates
+                    this.setupSubscriptions();
+                    
+                    // Start the game
+                    this.log('▶ Starting game...', 'action');
+                    await this.api.startGame(this.currentTableId);
+                    
+                    // Start bots
+                    this.botManager.startAll();
+                    this.log('✓ All bots started and playing', 'success');
+                    
+                    document.getElementById('stop-btn').disabled = false;
+                    
+                } catch (error) {
+                    this.log(`✗ Error: ${error.message}`, 'error');
+                    console.error(error);
+                    document.getElementById('start-btn').disabled = false;
+                }
+            }
+
+            setupSubscriptions() {
+                // Subscribe to table updates
+                this.api.subscribeToTable(this.currentTableId, (data) => {
+                    this.handleTableUpdate(data.record);
+                });
+
+                // Subscribe to game actions
+                this.api.subscribeToGameActions(this.currentTableId, (data) => {
+                    if (data.action === 'create') {
+                        this.handleGameAction(data.record);
+                    }
+                });
+            }
+
+            async handleTableUpdate(table) {
+                const statusEl = document.getElementById('game-status');
+                statusEl.textContent = table.status;
+                
+                if (table.status === 'playing' && table.current_game) {
+                    try {
+                        const gameState = await this.api.getGameState(table.current_game);
+                        this.updateGameInfo(gameState, table);
+                    } catch (error) {
+                        this.log(`✗ Error getting game state: ${error.message}`, 'error');
+                    }
+                }
+            }
+
+            async handleGameAction(action) {
+                this.actionCount++;
+                document.getElementById('action-count').textContent = this.actionCount;
+                
+                // Get player email
+                let playerEmail = 'Unknown';
+                try {
+                    const users = await this.api.pb.collection('users').getFullList({
+                        filter: `id = "${action.player}"`
+                    });
+                    if (users.length > 0) {
+                        playerEmail = users[0].email;
+                    }
+                } catch (e) {
+                    // Ignore
+                }
+                
+                const actionType = action.action_type;
+                const actionDataStr = JSON.stringify(action.action_data).substring(0, 50);
+                
+                this.log(`► ${playerEmail}: ${actionType} ${actionDataStr}`, 'action');
+                
+                // Update game state
+                try {
+                    const table = await this.api.getTable(this.currentTableId);
+                    if (table.current_game) {
+                        const gameState = await this.api.getGameState(table.current_game);
+                        this.updateGameInfo(gameState, table);
+                    }
+                } catch (error) {
+                    this.log(`✗ Error updating game info: ${error.message}`, 'error');
+                }
+            }
+
+            async updateGameInfo(gameState, table) {
+                const gameInfoEl = document.getElementById('game-info');
+                
+                // Get player info
+                const players = table.expand?.players || [];
+                const playerInfos = [];
+                
+                for (const player of players) {
+                    const hand = gameState.player_hands[player.id] || [];
+                    const melds = gameState.player_melds[player.id] || {};
+                    const isActive = gameState.current_player_turn === player.id;
+                    
+                    const meldCount = (melds.kan?.length || 0) + 
+                                    (melds.peng?.length || 0) + 
+                                    (melds.chi?.length || 0) + 
+                                    (melds.kai?.length || 0) + 
+                                    (melds.yu?.length || 0);
+                    
+                    playerInfos.push(`
+                        <div class="player-info ${isActive ? 'active' : ''}">
+                            <strong>${player.email}</strong> ${isActive ? '▶' : ''}
+                            <br>
+                            手牌 Hand: ${hand.length} | 明牌组 Melds: ${meldCount}
+                        </div>
+                    `);
+                }
+                
+                const gsd = gameState.game_specific_data || {};
+                const dealer = players.find(p => p.id === gsd.dealer);
+                
+                gameInfoEl.innerHTML = `
+                    <h3>当前回合 Current Turn</h3>
+                    <p>庄家 Dealer: ${dealer?.email || 'Unknown'}</p>
+                    <p>当前玩家 Current: ${players.find(p => p.id === gameState.current_player_turn)?.email || 'Unknown'}</p>
+                    <p>等待响应 Waiting Response: ${gsd.waiting_for_response ? '是 Yes' : '否 No'}</p>
+                    <h3 style="margin-top: 15px;">玩家状态 Players</h3>
+                    ${playerInfos.join('')}
+                `;
+                
+                // Update deck count
+                const deckCount = gameState.deck?.length || 0;
+                document.getElementById('deck-count').textContent = deckCount;
+                
+                // Check for game end
+                if (gsd.game_ended) {
+                    this.log(`🎉 游戏结束！胜者: ${players.find(p => p.id === gsd.winner)?.email || 'Unknown'}`, 'success');
+                    this.stopGame();
+                }
+            }
+
+            stopGame() {
+                if (this.botManager) {
+                    this.botManager.stopAll();
+                    this.botManager = null;
+                    this.log('✓ All bots stopped', 'success');
+                }
+                
+                this.api.unsubscribeAll();
+                
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = true;
+                
+                this.log('========== 游戏已停止 Game Stopped ==========', 'warning');
+            }
+        }
+
+        // Initialize app
+        const botTest = new BotTestApp();
+        botTest.init();
+    </script>
+</body>
+</html>

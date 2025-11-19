@@ -169,9 +169,15 @@ class GameAPIService {
             const users = await this.pb.collection('users').getFullList({
                 filter: `email = "${botEmail}"`
             });
-            botUser = users[0];
+            if (users && users.length > 0) {
+                botUser = users[0];
+            }
         } catch (error) {
-            // Create bot user if doesn't exist
+            // Error getting users
+        }
+        
+        // Create bot user if doesn't exist
+        if (!botUser) {
             const botName = botEmail.split('@')[0];
             const botPassword = 'bot_' + Math.random().toString(36).substring(7);
             botUser = await this.pb.collection('users').create({
