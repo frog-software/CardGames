@@ -53,7 +53,7 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 		&core.RelationField{Name: "rule", Required: true, CollectionId: gameRules.Id, MaxSelect: 1},
 		&core.RelationField{Name: "owner", Required: true, CollectionId: "_pb_users_auth_", MaxSelect: 1},
 		&core.SelectField{Name: "status", Required: true, Values: []string{"waiting", "playing", "finished"}, MaxSelect: 1},
-		&core.RelationField{Name: "players", CollectionId: "_pb_users_auth_"},
+		&core.RelationField{Name: "players", CollectionId: "_pb_users_auth_", MaxSelect: 4}, // Allow up to 4 players
 		&core.JSONField{Name: "player_states"},
 		&core.BoolField{Name: "is_private"},
 		&core.TextField{Name: "password"},
