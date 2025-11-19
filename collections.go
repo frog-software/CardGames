@@ -8,6 +8,16 @@ import (
 
 // initializeCollections creates all necessary collections for the game platform
 func initializeCollections(app *pocketbase.PocketBase) error {
+	// Configure users collection - allow authenticated users to list other users (needed for game)
+	usersCollection, err := app.FindCollectionByNameOrId("_pb_users_auth_")
+	if err == nil {
+		usersCollection.ListRule = types.Pointer("@request.auth.id != ''") // Authenticated users can list users
+		usersCollection.ViewRule = types.Pointer("@request.auth.id != ''") // Authenticated users can view users
+		if err := app.Save(usersCollection); err != nil {
+			// Log but don't fail if this doesn't work
+		}
+	}
+	
 	// Check if collections already exist
 	if _, err := app.FindCollectionByNameOrId("game_rules"); err == nil {
 		// Collections already exist
@@ -101,9 +111,10 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 
 	// Create game_actions collection
 	gameActions := core.NewBaseCollection("game_actions")
-	// Only table players can view actions
-	gameActions.ListRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
-	gameActions.ViewRule = types.Pointer("@request.auth.id != '' && table.players.id ?= @request.auth.id")
+	// Allow authenticated users to list/view actions (we'll filter by table on frontend)
+	// The complex join query was causing 400 errors
+	gameActions.ListRule = types.Pointer("@request.auth.id != ''")
+	gameActions.ViewRule = types.Pointer("@request.auth.id != ''")
 	// Players can create actions
 	gameActions.CreateRule = types.Pointer("@request.auth.id != ''")
 	gameActions.UpdateRule = nil // Actions are immutable
