@@ -37,8 +37,9 @@ function initializeGame(config, playerIds) {
     const remainingDeck = shuffledDeck.slice(deckIndex);
     
     // Reveal bonus card (the extra card dealer has)
-    const bonusCard = playerHands[dealerId][playerHands[dealerId].length - 1];
-    const bonusCardValue = calculateBonusCardValue(bonusCard);
+    const dealerHand = playerHands[dealerId];
+    const bonusCard = dealerHand && dealerHand.length > 0 ? dealerHand[dealerHand.length - 1] : null;
+    const bonusCardValue = bonusCard ? calculateBonusCardValue(bonusCard) : 0;
     
     return {
         player_hands: playerHands,
@@ -96,6 +97,10 @@ function shuffleDeck(deck) {
  * 黄=1, 红=2, 绿=3, 白=4
  */
 function calculateBonusCardValue(card) {
+    if (!card || !card.suit) {
+        console.error('calculateBonusCardValue: card is undefined or missing suit property', card);
+        return 0;
+    }
     const values = { yellow: 1, red: 2, green: 3, white: 4 };
     return values[card.suit] || 0;
 }
