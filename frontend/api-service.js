@@ -54,9 +54,10 @@ class GameAPIService {
     // ========== Tables ==========
     
     async getTables(gameRuleId = null) {
-        let filter = 'status = "waiting" || status = "playing"';
+        // Simplified filter without complex OR conditions
+        let filter = '';
         if (gameRuleId) {
-            filter = `(${filter}) && rule = "${gameRuleId}"`;
+            filter = `rule = "${gameRuleId}"`;
         }
         
         return await this.pb.collection('tables').getList(1, 50, {
@@ -169,18 +170,38 @@ class GameAPIService {
             const users = await this.pb.collection('users').getFullList({
                 filter: `email = "${botEmail}"`
             });
-            botUser = users[0];
+            if (users && users.length > 0) {
+                botUser = users[0];
+            }
         } catch (error) {
-            // Create bot user if doesn't exist
-            const botName = botEmail.split('@')[0];
-            const botPassword = 'bot_' + Math.random().toString(36).substring(7);
-            botUser = await this.pb.collection('users').create({
-                email: botEmail,
-                password: botPassword,
-                passwordConfirm: botPassword,
-                username: botName,
-                emailVisibility: true
-            });
+            console.log(`Error checking for existing user: ${error.message}`);
+        }
+        
+        // Create bot user if doesn't exist
+        if (!botUser) {
+            try {
+                const botName = botEmail.split('@')[0];
+                const botPassword = 'bot_' + Math.random().toString(36).substring(7);
+                botUser = await this.pb.collection('users').create({
+                    email: botEmail,
+                    password: botPassword,
+                    passwordConfirm: botPassword,
+                    username: botName,
+                    emailVisibility: true
+                });
+                console.log(`Created bot user: ${botEmail}`);
+            } catch (createError) {
+                // If creation fails (e.g., user already exists), try to get it again
+                console.log(`Failed to create bot user, trying to fetch again: ${createError.message}`);
+                const users = await this.pb.collection('users').getFullList({
+                    filter: `email = "${botEmail}"`
+                });
+                if (users && users.length > 0) {
+                    botUser = users[0];
+                } else {
+                    throw new Error(`Cannot create or find bot user: ${botEmail}`);
+                }
+            }
         }
 
         // Add bot to table

@@ -15,13 +15,34 @@ class BotPlayer {
     }
 
     async initialize() {
-        // Get bot user ID
-        const users = await this.api.pb.collection('users').getFullList({
-            filter: `email = "${this.botEmail}"`
-        });
+        // Get bot user ID with retries
+        let users = [];
+        let retries = 3;
+        
+        while (retries > 0 && users.length === 0) {
+            try {
+                users = await this.api.pb.collection('users').getFullList({
+                    filter: `email = "${this.botEmail}"`
+                });
+                
+                if (users.length === 0) {
+                    retries--;
+                    if (retries > 0) {
+                        // Wait a bit before retrying
+                        await this.sleep(500);
+                    }
+                }
+            } catch (error) {
+                console.error(`[Bot ${this.botEmail}] Error fetching user:`, error);
+                retries--;
+                if (retries > 0) {
+                    await this.sleep(500);
+                }
+            }
+        }
         
         if (users.length === 0) {
-            throw new Error('Bot user not found');
+            throw new Error('Bot user not found after retries');
         }
         
         this.botUserId = users[0].id;
