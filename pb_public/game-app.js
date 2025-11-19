@@ -251,16 +251,34 @@ class GameApp {
             document.getElementById('waiting-area').classList.remove('hidden');
             document.getElementById('playing-area').classList.add('hidden');
             
-            // Update player list
-            const players = table.expand?.players || [];
+            // Get player list - handle both expanded and non-expanded cases
+            let players = [];
+            if (table.expand?.players && Array.isArray(table.expand.players)) {
+                players = table.expand.players;
+            } else if (Array.isArray(table.players)) {
+                // Players not expanded, fetch them
+                try {
+                    const playerPromises = table.players.map(id => 
+                        this.api.pb.collection('users').getOne(id).catch(() => null)
+                    );
+                    const fetchedPlayers = await Promise.all(playerPromises);
+                    players = fetchedPlayers.filter(p => p !== null);
+                } catch (error) {
+                    console.error('Error fetching players:', error);
+                    players = [];
+                }
+            }
+            
             const playerStates = table.player_states || {};
             
-            document.getElementById('waiting-players').innerHTML = players.map(p => {
-                const state = playerStates[p.id] || {};
-                const readyIcon = state.ready ? '✓' : '○';
-                const botLabel = state.is_bot ? ' 🤖' : '';
-                return `<div>${readyIcon} ${this.escapeHtml(p.email)}${botLabel}</div>`;
-            }).join('');
+            document.getElementById('waiting-players').innerHTML = players.length > 0 
+                ? players.map(p => {
+                    const state = playerStates[p.id] || {};
+                    const readyIcon = state.ready ? '✓' : '○';
+                    const botLabel = state.is_bot ? ' 🤖' : '';
+                    return `<div>${readyIcon} ${this.escapeHtml(p.email)}${botLabel}</div>`;
+                  }).join('')
+                : '<div>等待玩家加入... Waiting for players...</div>';
 
             // Enable start button if all ready and 4 players
             const allReady = players.every(p => playerStates[p.id]?.ready);
