@@ -54,9 +54,10 @@ class GameAPIService {
     // ========== Tables ==========
     
     async getTables(gameRuleId = null) {
-        let filter = 'status = "waiting" || status = "playing"';
+        // Simplified filter without complex OR conditions
+        let filter = '';
         if (gameRuleId) {
-            filter = `(${filter}) && rule = "${gameRuleId}"`;
+            filter = `rule = "${gameRuleId}"`;
         }
         
         return await this.pb.collection('tables').getList(1, 50, {
