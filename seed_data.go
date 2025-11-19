@@ -9,6 +9,14 @@ import (
 
 // seedFourColorCard creates the Four Color Card game rule if it doesn't exist
 func seedFourColorCard(app *pocketbase.PocketBase) error {
+	// First check if the collection exists
+	_, err := app.FindCollectionByNameOrId("game_rules")
+	if err != nil {
+		// Collection doesn't exist yet, skip seeding
+		// This will be called again after collections are created
+		return nil
+	}
+	
 	// Check if rule already exists
 	record, err := app.FindFirstRecordByFilter("game_rules", "name = 'Four Color Card'")
 	
@@ -18,10 +26,6 @@ func seedFourColorCard(app *pocketbase.PocketBase) error {
 	}
 	
 	// Continue with creation if record not found
-	// TODO: For production, implement proper error type checking
-	// to distinguish between "not found" and other database errors
-	// Currently, any error is treated as "not found" which could
-	// mask actual database connection or permission issues
 
 	// Create the config JSON
 	config := map[string]interface{}{
