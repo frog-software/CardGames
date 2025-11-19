@@ -417,29 +417,44 @@ class GameApp {
 
     async toggleReady() {
         try {
+            this.log('► Toggling ready status...', 'info');
             await this.api.toggleReady(this.currentTableId);
             this.log('✓ Ready status toggled', 'success');
+            // Force immediate UI update
+            await this.updateRoomUI();
         } catch (error) {
             this.log(`✗ Error toggling ready: ${error.message}`, 'error');
+            alert('切换准备状态失败 Failed to toggle ready: ' + error.message);
         }
     }
 
     async addBot(botEmail) {
         try {
+            this.log(`► Adding bot: ${botEmail}...`, 'info');
             await this.api.addBotPlayer(this.currentTableId, botEmail);
             this.log(`✓ Bot added: ${botEmail}`, 'success');
+            // Force immediate UI update to show new bot
+            await this.updateRoomUI();
         } catch (error) {
             this.log(`✗ Error adding bot: ${error.message}`, 'error');
+            alert(`添加机器人失败 Failed to add bot: ${error.message}`);
         }
     }
 
     async startGame() {
         try {
+            this.log('► Starting game...', 'action');
+            const startBtn = document.getElementById('start-btn');
+            if (startBtn) startBtn.disabled = true;
+            
             await this.api.startGame(this.currentTableId);
             this.log('✓ Game started!', 'success');
+            // UI will update via subscription when status changes to 'playing'
         } catch (error) {
             this.log(`✗ Error starting game: ${error.message}`, 'error');
             alert('开始游戏失败 Failed to start game: ' + error.message);
+            const startBtn = document.getElementById('start-btn');
+            if (startBtn) startBtn.disabled = false;
         }
     }
 
