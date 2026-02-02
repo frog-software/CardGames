@@ -62,6 +62,7 @@ See [DOCKER_GUIDE.md](DOCKER_GUIDE.md) for detailed Docker deployment instructio
 **For Users:**
 - [README.md](README.md) - This file, platform overview
 - [API.md](API.md) - REST API reference
+- [FOUR_COLOR_CARD_GUIDE.md](FOUR_COLOR_CARD_GUIDE.md) - **四色牌完整实现指南** ⭐
 
 **For Developers:**
 - [GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md) - **How to create new games** ⭐
@@ -213,6 +214,7 @@ docker run -d -p 8090:8090 -v cardgames-data:/app/pb_data cardgames:latest
 **用户文档：**
 - [README.md](README.md) - 本文件，平台概述
 - [API.md](API.md) - REST API 参考
+- [FOUR_COLOR_CARD_GUIDE.md](FOUR_COLOR_CARD_GUIDE.md) - **四色牌完整实现指南** ⭐
 
 **开发者文档：**
 - [GAME_RULE_GUIDE.md](GAME_RULE_GUIDE.md) - **如何创建新游戏** ⭐
