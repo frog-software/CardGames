@@ -8,6 +8,11 @@ import (
 
 // initializeCollections creates all necessary collections for the game platform
 func initializeCollections(app *pocketbase.PocketBase) error {
+	// Extend users collection with bot fields
+	if err := extendUsersCollection(app); err != nil {
+		return err
+	}
+	
 	// Check if collections already exist
 	if _, err := app.FindCollectionByNameOrId("game_rules"); err == nil {
 		// Collections already exist
@@ -75,6 +80,8 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 	gameStates.Fields.Add(
 		&core.RelationField{Name: "table", Required: true, CollectionId: tables.Id, MaxSelect: 1, CascadeDelete: true},
 		&core.NumberField{Name: "round_number", Required: true},
+		&core.NumberField{Name: "current_player_index"},
+		&core.NumberField{Name: "dealer_index"},
 		&core.RelationField{Name: "current_player_turn", CollectionId: "_pb_users_auth_", MaxSelect: 1},
 		&core.JSONField{Name: "player_hands", Required: true},
 		&core.JSONField{Name: "deck", Required: true},
@@ -123,4 +130,30 @@ func initializeCollections(app *pocketbase.PocketBase) error {
 	}
 
 	return nil
+}
+
+// extendUsersCollection adds bot-related fields to the users collection
+func extendUsersCollection(app *pocketbase.PocketBase) error {
+	usersCollection, err := app.FindCollectionByNameOrId("_pb_users_auth_")
+	if err != nil {
+		return err
+	}
+	
+	// Check if is_bot field already exists
+	if usersCollection.Fields.GetByName("is_bot") != nil {
+		// Fields already added
+		return nil
+	}
+	
+	// Add bot-related fields
+	usersCollection.Fields.Add(
+		&core.BoolField{Name: "is_bot"},
+		&core.SelectField{
+			Name:      "bot_level",
+			Values:    []string{"easy", "normal", "hard"},
+			MaxSelect: 1,
+		},
+	)
+	
+	return app.Save(usersCollection)
 }
