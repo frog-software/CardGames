@@ -114,8 +114,9 @@ func (bs *BotScheduler) processBotTurnForTable(table *core.Record) {
 		return
 	}
 
-	// Simulate thinking delay
-	thinkTime := time.Duration(2000+rand.Intn(3000)) * time.Millisecond
+	// Simulate thinking delay with seeded random
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	thinkTime := time.Duration(2000+r.Intn(3000)) * time.Millisecond
 	time.Sleep(thinkTime)
 
 	// Execute bot decision
@@ -247,7 +248,11 @@ func (bs *BotScheduler) executeAction(table *core.Record, gameState *core.Record
 	actionRecord.Set("sequence_number", sequenceNumber)
 	actionRecord.Set("action_type", actionType)
 	
-	actionDataJson, _ := json.Marshal(actionData)
+	actionDataJson, err := json.Marshal(actionData)
+	if err != nil {
+		log.Printf("Error marshaling action data: %v", err)
+		return
+	}
 	actionRecord.Set("action_data", string(actionDataJson))
 
 	if err := bs.app.Save(actionRecord); err != nil {

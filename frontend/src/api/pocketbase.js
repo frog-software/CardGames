@@ -1,7 +1,9 @@
 import PocketBase from 'pocketbase'
 
 // Initialize PocketBase client
-const pb = new PocketBase('http://localhost:8090')
+// Use environment variable for production, fallback to localhost for development
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090'
+const pb = new PocketBase(apiUrl)
 
 // Enable auto cancellation for duplicate requests
 pb.autoCancellation(false)

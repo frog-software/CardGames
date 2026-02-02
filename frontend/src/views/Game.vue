@@ -225,7 +225,7 @@ async function handleHu() {
 
 function handleActionUpdate(action) {
   // Handle real-time action updates
-  console.log('Action update:', action)
+  // TODO: Implement action update handling
 }
 
 function handleBack() {

@@ -294,7 +294,10 @@ func gameActionHandler(c *core.RequestEvent, app *pocketbase.PocketBase) error {
 	actionRecord.Set("sequence_number", sequenceNumber)
 	actionRecord.Set("action_type", data.ActionType)
 	
-	actionDataJson, _ := json.Marshal(data.ActionData)
+	actionDataJson, err := json.Marshal(data.ActionData)
+	if err != nil {
+		return apis.NewApiError(500, "Failed to marshal action data", err)
+	}
 	actionRecord.Set("action_data", string(actionDataJson))
 	
 	if err := app.Save(actionRecord); err != nil {
