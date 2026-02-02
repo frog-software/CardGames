@@ -10,6 +10,9 @@ import (
 func main() {
 	app := pocketbase.New()
 
+	// Create bot scheduler
+	botScheduler := NewBotScheduler(app)
+
 	// Bootstrap collections and seed data on app serve
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
 		if err := initializeCollections(app); err != nil {
@@ -19,6 +22,10 @@ func main() {
 		if err := seedFourColorCard(app); err != nil {
 			return err
 		}
+		
+		// Start bot scheduler
+		botScheduler.Start()
+		
 		return e.Next()
 	})
 

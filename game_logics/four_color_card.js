@@ -595,3 +595,294 @@ function calculateFinalScores(config, gameState, winnerId) {
     
     return scores;
 }
+
+/**
+ * Bot Decision Making AI
+ * Implements strategic decision making for bot players based on difficulty level
+ * @param {Object} config - Game configuration
+ * @param {Object} gameState - Current game state
+ * @param {string} botId - Bot player ID
+ * @param {string} botLevel - Difficulty level: 'easy', 'normal', or 'hard'
+ * @returns {Object} Decision object with action_type and action_data
+ */
+function botDecision(config, gameState, botId, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    const playerMelds = gameState.player_melds[botId];
+    const lastPlay = gameState.last_play;
+    const waitingForResponse = gameState.game_specific_data.waiting_for_response;
+    const isCurrentTurn = gameState.current_player_turn === botId;
+    
+    // If waiting for response from this bot
+    if (waitingForResponse && gameState.game_specific_data.response_allowed_players.includes(botId)) {
+        return botResponseDecision(config, gameState, botId, botLevel, lastPlay);
+    }
+    
+    // If it's bot's turn to play
+    if (isCurrentTurn && !waitingForResponse) {
+        return botPlayDecision(config, gameState, botId, botLevel);
+    }
+    
+    // Default: pass
+    return { action_type: 'pass', action_data: {} };
+}
+
+/**
+ * Bot decision when responding to other player's play
+ */
+function botResponseDecision(config, gameState, botId, botLevel, lastPlay) {
+    const playerHand = gameState.player_hands[botId];
+    const playerMelds = gameState.player_melds[botId];
+    const lastCard = lastPlay.cards[0];
+    
+    // Check for Hu (highest priority)
+    if (canBotHu(config, gameState, botId, lastCard, botLevel)) {
+        return { action_type: 'hu', action_data: { card: lastCard } };
+    }
+    
+    // Check for Kai (if already have peng)
+    const kaiDecision = checkBotKai(config, gameState, botId, lastCard, botLevel);
+    if (kaiDecision) return kaiDecision;
+    
+    // Check for Peng
+    const pengDecision = checkBotPeng(config, gameState, botId, lastCard, botLevel);
+    if (pengDecision) return pengDecision;
+    
+    // Check for Chi (only if next player)
+    const chiDecision = checkBotChi(config, gameState, botId, lastCard, botLevel);
+    if (chiDecision) return chiDecision;
+    
+    // Default: Draw card
+    return { action_type: 'draw', action_data: {} };
+}
+
+/**
+ * Bot decision when it's their turn to play
+ */
+function botPlayDecision(config, gameState, botId, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    const playerMelds = gameState.player_melds[botId];
+    
+    if (!playerHand || playerHand.length === 0) {
+        return { action_type: 'pass', action_data: {} };
+    }
+    
+    // Choose card to discard based on difficulty
+    let cardToPlay;
+    
+    if (botLevel === 'easy') {
+        // Easy: random card
+        cardToPlay = playerHand[Math.floor(Math.random() * playerHand.length)];
+    } else if (botLevel === 'normal') {
+        // Normal: discard least valuable card
+        cardToPlay = findLeastValuableCard(config, playerHand, playerMelds);
+    } else {
+        // Hard: strategic discard considering opponent needs
+        cardToPlay = findStrategicDiscard(config, gameState, botId, playerHand, playerMelds);
+    }
+    
+    return {
+        action_type: 'play_cards',
+        action_data: { cards: [cardToPlay] }
+    };
+}
+
+/**
+ * Check if bot can and should Hu
+ */
+function canBotHu(config, gameState, botId, card, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    const playerMelds = gameState.player_melds[botId];
+    
+    // Simple check: if hand is empty or very small, try to hu
+    if (playerHand.length <= 1) {
+        // Easy bots only hu on big hands
+        if (botLevel === 'easy') {
+            const hasBigMeld = playerMelds.kai.length > 0 || playerMelds.yu.length > 0;
+            return hasBigMeld;
+        }
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check if bot can and should Kai
+ */
+function checkBotKai(config, gameState, botId, card, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    const playerMelds = gameState.player_melds[botId];
+    
+    // Check if we can upgrade a peng to kai
+    for (const peng of playerMelds.peng) {
+        const pengCard = peng.cards[0];
+        if (pengCard.suit === card.suit && pengCard.rank === card.rank) {
+            // Found matching peng, check if we should kai
+            if (botLevel === 'hard') {
+                // Hard bots always kai for points
+                return { action_type: 'kai', action_data: { card: card } };
+            } else if (botLevel === 'normal' && card.type === 'jin_tiao') {
+                // Normal bots kai jin_tiao
+                return { action_type: 'kai', action_data: { card: card } };
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Check if bot can and should Peng
+ */
+function checkBotPeng(config, gameState, botId, card, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    
+    // Count matching cards
+    const matchingCards = playerHand.filter(c => 
+        c.suit === card.suit && c.rank === card.rank
+    );
+    
+    if (matchingCards.length >= 2) {
+        // Have enough cards to peng
+        if (botLevel === 'easy') {
+            // Easy bots only peng jin_tiao
+            if (card.type === 'jin_tiao') {
+                return { action_type: 'peng', action_data: {} };
+            }
+        } else {
+            // Normal and hard bots peng more strategically
+            return { action_type: 'peng', action_data: {} };
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Check if bot can and should Chi
+ */
+function checkBotChi(config, gameState, botId, card, botLevel) {
+    const playerHand = gameState.player_hands[botId];
+    
+    // Check if we're the next player
+    const players = Object.keys(gameState.player_hands);
+    const lastPlayerIndex = players.indexOf(gameState.last_play.player);
+    const nextPlayerIndex = (lastPlayerIndex + 1) % players.length;
+    const nextPlayer = players[nextPlayerIndex];
+    
+    if (nextPlayer !== botId) {
+        return null; // Can only chi from previous player
+    }
+    
+    // Try to find chi patterns
+    const chiPatterns = config.custom_data.chi_patterns;
+    
+    for (const pattern of chiPatterns) {
+        if (pattern.type === 'sequence') {
+            // Check for sequence patterns (车马炮, 将士象)
+            const neededRanks = pattern.ranks.filter(r => r !== card.rank);
+            const hasNeededCards = neededRanks.every(rank => 
+                playerHand.some(c => c.rank === rank && c.suit === card.suit)
+            );
+            
+            if (hasNeededCards) {
+                const cardsToUse = neededRanks.map(rank => 
+                    playerHand.find(c => c.rank === rank && c.suit === card.suit)
+                );
+                
+                // Easy bots don't chi
+                if (botLevel === 'easy') continue;
+                
+                return {
+                    action_type: 'chi',
+                    action_data: {
+                        cards: cardsToUse,
+                        pattern: { type: pattern.type, points: pattern.points }
+                    }
+                };
+            }
+        } else if (pattern.type === 'single_jiang' && card.rank === '将') {
+            if (botLevel !== 'easy') {
+                return {
+                    action_type: 'chi',
+                    action_data: {
+                        cards: [],
+                        pattern: { type: pattern.type, points: pattern.points }
+                    }
+                };
+            }
+        } else if (pattern.type === 'single_jin_tiao' && card.type === 'jin_tiao') {
+            // All bots chi jin_tiao
+            return {
+                action_type: 'chi',
+                action_data: {
+                    cards: [],
+                    pattern: { type: pattern.type, points: pattern.points }
+                }
+            };
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Find least valuable card to discard
+ */
+function findLeastValuableCard(config, playerHand, playerMelds) {
+    // Priority: discard isolated cards first
+    const cardCounts = {};
+    for (const card of playerHand) {
+        const key = `${card.suit}-${card.rank}`;
+        cardCounts[key] = (cardCounts[key] || 0) + 1;
+    }
+    
+    // Find single cards (isolated)
+    for (const card of playerHand) {
+        const key = `${card.suit}-${card.rank}`;
+        if (cardCounts[key] === 1 && card.type !== 'jin_tiao') {
+            return card;
+        }
+    }
+    
+    // If no isolated card, return first non-jin_tiao card
+    for (const card of playerHand) {
+        if (card.type !== 'jin_tiao') {
+            return card;
+        }
+    }
+    
+    // Worst case: discard any card
+    return playerHand[0];
+}
+
+/**
+ * Find strategic card to discard (hard mode)
+ */
+function findStrategicDiscard(config, gameState, botId, playerHand, playerMelds) {
+    // For hard mode: remember discarded cards and avoid giving points
+    const discardPile = gameState.discard_pile || [];
+    
+    // Find safest card (least likely to be useful to opponents)
+    let safestCard = null;
+    let minRisk = Infinity;
+    
+    for (const card of playerHand) {
+        if (card.type === 'jin_tiao') continue; // Never discard jin_tiao first
+        
+        // Check how many of this card are in discard pile
+        const discardedCount = discardPile.filter(c => 
+            c.suit === card.suit && c.rank === card.rank
+        ).length;
+        
+        // Higher discard count = safer to play
+        const risk = 4 - discardedCount; // Max 4 of same card
+        
+        if (risk < minRisk) {
+            minRisk = risk;
+            safestCard = card;
+        }
+    }
+    
+    return safestCard || findLeastValuableCard(config, playerHand, playerMelds);
+}
